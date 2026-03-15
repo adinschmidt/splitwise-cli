@@ -22,7 +22,7 @@ jobs:
             binary: splitwise
             archive: splitwise-linux-x86_64.tar.gz
           - name: macOS x86_64
-            os: macos-13
+            os: macos-15-intel
             target: x86_64-apple-darwin
             binary: splitwise
             archive: splitwise-macos-x86_64.tar.gz
