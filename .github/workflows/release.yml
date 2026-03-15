@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform.name }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Linux x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary: splitwise
+            archive: splitwise-linux-x86_64.tar.gz
+          - name: macOS x86_64
+            os: macos-13
+            target: x86_64-apple-darwin
+            binary: splitwise
+            archive: splitwise-macos-x86_64.tar.gz
+          - name: macOS ARM64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            binary: splitwise
+            archive: splitwise-macos-arm64.tar.gz
+          - name: Windows x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: splitwise.exe
+            archive: splitwise-windows-x86_64.zip
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      - name: Build release binary
+        run: cargo build --release --locked --bin splitwise --target ${{ matrix.platform.target }}
+
+      - name: Package archive
+        if: runner.os != 'Windows'
+        run: tar -C target/${{ matrix.platform.target }}/release -czf ${{ matrix.platform.archive }} ${{ matrix.platform.binary }}
+
+      - name: Package archive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }} -DestinationPath ${{ matrix.platform.archive }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform.archive }}
+          path: ${{ matrix.platform.archive }}
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download packaged artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Flatten downloaded artifacts
+        run: |
+          mkdir -p dist
+          find release-artifacts -type f -maxdepth 2 -exec cp {} dist/ \;
+          ls -la dist
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
