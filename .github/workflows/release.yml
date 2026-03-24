@@ -20,22 +20,22 @@ jobs:
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             binary: splitwise
-            archive: splitwise-linux-x86_64.tar.gz
+            asset: splitwise-linux-x86_64
           - name: macOS x86_64
             os: macos-15-intel
             target: x86_64-apple-darwin
             binary: splitwise
-            archive: splitwise-macos-x86_64.tar.gz
+            asset: splitwise-macos-x86_64
           - name: macOS ARM64
             os: macos-latest
             target: aarch64-apple-darwin
             binary: splitwise
-            archive: splitwise-macos-arm64.tar.gz
+            asset: splitwise-macos-arm64
           - name: Windows x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
             binary: splitwise.exe
-            archive: splitwise-windows-x86_64.zip
+            asset: splitwise-windows-x86_64.exe
 
     steps:
       - name: Checkout repository
@@ -49,20 +49,20 @@ jobs:
       - name: Build release binary
         run: cargo build --release --locked --bin splitwise --target ${{ matrix.platform.target }}
 
-      - name: Package archive
+      - name: Prepare release asset
         if: runner.os != 'Windows'
-        run: tar -C target/${{ matrix.platform.target }}/release -czf ${{ matrix.platform.archive }} ${{ matrix.platform.binary }}
+        run: cp target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }} ${{ matrix.platform.asset }}
 
-      - name: Package archive
+      - name: Prepare release asset
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }} -DestinationPath ${{ matrix.platform.archive }}
+        run: Copy-Item target/${{ matrix.platform.target }}/release/${{ matrix.platform.binary }} ${{ matrix.platform.asset }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform.archive }}
-          path: ${{ matrix.platform.archive }}
+          name: ${{ matrix.platform.asset }}
+          path: ${{ matrix.platform.asset }}
           if-no-files-found: error
 
   release:
@@ -73,7 +73,7 @@ jobs:
       contents: write
 
     steps:
-      - name: Download packaged artifacts
+      - name: Download release artifacts
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
